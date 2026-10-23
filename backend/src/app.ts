@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import { env } from './config/env';
 import { apiRouter } from './routes';
+import { optionalAuth } from './middleware/auth';
 import { notFoundHandler } from './middleware/not-found';
 import { errorHandler } from './middleware/error-handler';
 
@@ -32,7 +33,7 @@ export function createApp(): Express {
           callback(null, true);
         }
       },
-      methods: ['GET', 'POST', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
     })
@@ -40,6 +41,9 @@ export function createApp(): Express {
 
   // Request body parsing with safe size limit
   app.use(express.json({ limit: '1mb' }));
+
+  // Global optional auth (populates req.user if Bearer token present)
+  app.use(optionalAuth);
 
   // Mount API routes
   app.use('/api', apiRouter);

@@ -7,8 +7,14 @@ import {
   missionRepository,
   messageRepository,
   memoryRepository,
+  decisionRepository,
 } from '../db';
 import { ApiError } from '../utils/api-error';
+
+export interface UserContext {
+  id: string;
+  name: string;
+}
 
 export class MainAiService {
   private readonly generateFn: (params: GenerateGemmaParams) => Promise<string>;
@@ -26,7 +32,7 @@ export class MainAiService {
    * Orchestrates the Main AI chat interaction.
    * Supports both persisted conversations (via conversationId) and stateless mode.
    */
-  async processChat(request: ChatRequest): Promise<ChatResponse> {
+  async processChat(request: ChatRequest, currentUser?: UserContext): Promise<ChatResponse> {
     const activeModel = this.model || env.gemmaModel;
 
     // --- Persisted Conversation Mode ---
@@ -67,28 +73,34 @@ export class MainAiService {
       const storedMessages = messageRepository.getRecentContextMessages(conversation.id, 30);
       const formattedHistory: GemmaContentMessage[] = storedMessages.map((msg) => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
+        parts: [{ text: msg.userName ? `${msg.userName}: ${msg.content}` : msg.content }],
       }));
 
       // Append incoming user message
+      const incomingText = currentUser?.name ? `${currentUser.name}: ${userMessageText}` : userMessageText;
       const formattedContents: GemmaContentMessage[] = [
         ...formattedHistory,
-        { role: 'user', parts: [{ text: userMessageText }] },
+        { role: 'user', parts: [{ text: incomingText }] },
       ];
 
-      // Save user message to SQLite
-      const userMessage = messageRepository.createMessage(conversation.id, 'user', userMessageText);
+      // Save user message to SQLite with author tracking
+      const userMessage = messageRepository.createMessage(conversation.id, 'user', userMessageText, {
+        userId: currentUser?.id,
+        userName: currentUser?.name,
+      });
       conversationRepository.touchConversation(conversation.id);
 
-      // Load mission memory and bounded recent unincorporated SideQuest summaries
+      // Load mission memory, team-approved shared decisions, and bounded recent unincorporated SideQuest summaries
       const missionMemory = memoryRepository.getMissionMemory(mission.id);
       const unincorporatedSideQuests = memoryRepository.getUnincorporatedSideQuestSummaries(mission.id, 2);
       const sideQuestSummaries = unincorporatedSideQuests.map((u) => u.summary);
+      const sharedDecisions = decisionRepository.listMissionDecisions(mission.id);
 
       // Build system instruction with structured context
       const systemInstruction = buildMainAiSystemPrompt(mission.objective, {
         missionMemory,
         sideQuestSummaries,
+        sharedDecisions,
       });
 
       // Invoke shared Gemma model with rollback guard
@@ -123,25 +135,34 @@ export class MainAiService {
       };
     }
 
-    // --- Stateless Mode (Backward Compatible) ---
-    const missionObjective = request.missionObjective!;
-    const messages = request.messages!;
+    // --- Stateless Fallback Mode ---
+    const objective = request.missionObjective || '';
+    const messages = request.messages || [];
 
-    const systemInstruction = buildMainAiSystemPrompt(missionObjective);
-    const formattedContents: GemmaContentMessage[] = messages.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }],
+    if (messages.length === 0 && !request.message) {
+      throw ApiError.badRequest('At least one user message or conversationId is required.');
+    }
+
+    const formattedContents: GemmaContentMessage[] = messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
     }));
 
+    if (request.message && request.message.trim().length > 0) {
+      formattedContents.push({
+        role: 'user',
+        parts: [{ text: request.message.trim() }],
+      });
+    }
+
+    const systemInstruction = buildMainAiSystemPrompt(objective);
     const reply = await this.generateFn({
       model: activeModel,
       systemInstruction,
       contents: formattedContents,
     });
 
-    return {
-      reply,
-    };
+    return { reply };
   }
 }
 

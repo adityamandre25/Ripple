@@ -11,17 +11,30 @@ export class ApiError extends Error {
   public readonly code: string;
   public readonly details?: unknown;
 
-  constructor(statusCode: number, code: string, message: string, details?: unknown) {
-    super(message);
+  constructor(statusCode: number, codeOrMessage: string, message?: string, details?: unknown) {
+    if (message !== undefined) {
+      super(message);
+      this.code = codeOrMessage;
+    } else {
+      super(codeOrMessage);
+      this.code = `ERROR_${statusCode}`;
+    }
     this.name = 'ApiError';
     this.statusCode = statusCode;
-    this.code = code;
     this.details = details;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 
   static badRequest(message: string, details?: unknown): ApiError {
     return new ApiError(400, 'INVALID_REQUEST', message, details);
+  }
+
+  static unauthorized(message = 'Authentication required.'): ApiError {
+    return new ApiError(401, 'UNAUTHORIZED', message);
+  }
+
+  static forbidden(message = 'Access forbidden.'): ApiError {
+    return new ApiError(403, 'FORBIDDEN', message);
   }
 
   static notFound(message = 'Route not found.'): ApiError {

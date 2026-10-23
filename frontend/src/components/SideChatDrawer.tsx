@@ -128,24 +128,59 @@ export const SideChatDrawer: React.FC = () => {
         </div>
       </div>
 
+      {/* Source C: Active Workspace Collaborators & Model Badge */}
+      <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between text-xs">
+        <span className="font-medium text-slate-700 flex items-center gap-1.5 text-[11px]">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Decision Intelligence Ready</span>
+        </span>
+        <div className="flex items-center gap-1 text-[10px] font-mono">
+          <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold">Gemma 4</span>
+          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">Active</span>
+        </div>
+      </div>
+
       {/* Main Conversation Stream */}
       <div 
         ref={contentRef} 
         onMouseUp={handleMouseUp}
         className="flex-1 overflow-y-auto p-4 space-y-4 text-xs"
       >
-        {/* If no messages yet, show introductory banner */}
+        {/* If no messages yet, show introductory hero banner */}
         {messages.length === 0 && (
-          <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-slate-700 space-y-2">
-            <div className="flex items-center gap-2 text-indigo-700 font-bold">
-              <Sparkles className="w-4 h-4" />
-              <span>{isRoot ? 'Main AI Anchor' : 'Isolated SideQuest'}</span>
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50/70 to-indigo-50/70 border border-purple-200/80 text-slate-700 space-y-3">
+            <div className="flex items-center gap-2 text-purple-700 font-bold">
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              <span>{isRoot ? 'Main AI Mission Anchor' : 'Isolated SideQuest Explorer'}</span>
             </div>
             <p className="text-xs text-slate-600 leading-relaxed">
               {isRoot
-                ? 'Ask your project-level questions here. When you return from any SideQuest, structured findings will automatically transfer into this context.'
-                : `Investigate "${selectedNode.query}" freely. Your findings will be synthesized when you click Return to Mission.`}
+                ? 'Ask architectural questions here. Approved decisions and synthesized findings from any SideQuest tangent will safely incorporate into this root mission.'
+                : `Investigate "${selectedNode.query}" freely. Your tangential exploration will remain strictly isolated until you click Return to Mission.`}
             </p>
+
+            {/* Suggested Actions */}
+            <div className="pt-2 border-t border-purple-100 space-y-1.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-600 block">
+                Suggested Actions
+              </span>
+              <button
+                type="button"
+                onClick={() => setInputText('Summarize active RFC node contracts and constraints')}
+                className="w-full text-left p-2 rounded-xl bg-white/80 hover:bg-white border border-purple-200/60 transition text-xs font-medium text-slate-700 flex items-center justify-between cursor-pointer"
+              >
+                <span>Summarize active node contracts</span>
+                <span className="text-slate-400 font-mono text-[10px]">⌘1</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInputText('Inspect architectural diffs and drift risks')}
+                className="w-full text-left p-2 rounded-xl bg-white/80 hover:bg-white border border-purple-200/60 transition text-xs font-medium text-slate-700 flex items-center justify-between cursor-pointer"
+              >
+                <span>Inspect architecture diffs</span>
+                <span className="text-slate-400 font-mono text-[10px]">⌘2</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -158,7 +193,7 @@ export const SideChatDrawer: React.FC = () => {
               className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
             >
               <div className="flex items-center gap-1.5 mb-1 px-1 text-[10px] text-slate-400">
-                <span>{isUser ? 'You' : isRoot ? 'Main AI (Gemma)' : 'SideQuest AI (Gemma)'}</span>
+                <span>{isUser ? (msg.authorName || 'You') : isRoot ? 'Main AI (Gemma)' : 'SideQuest AI (Gemma)'}</span>
                 {msg.createdAt && (
                   <>
                     <span>•</span>
@@ -170,15 +205,40 @@ export const SideChatDrawer: React.FC = () => {
               <div
                 className={`p-3.5 rounded-2xl max-w-[92%] leading-relaxed shadow-xs whitespace-pre-wrap font-sans ${
                   isUser
-                    ? 'bg-indigo-600 text-white rounded-tr-xs'
+                    ? 'bg-blue-600 text-white rounded-tr-xs'
                     : 'bg-slate-50 border border-slate-200/90 text-slate-800 rounded-tl-xs'
                 }`}
               >
                 {msg.content}
               </div>
+
+              {!isUser && (
+                <div className="flex items-center gap-2 mt-1 px-1 text-[10px] text-slate-400">
+                  <button
+                    type="button"
+                    onClick={() => showToast('Feedback recorded: useful response', 'info')}
+                    className="hover:text-blue-600 cursor-pointer transition-colors"
+                    title="Mark helpful"
+                  >
+                    👍 Helpful
+                  </button>
+                  <span>•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(msg.content);
+                      showToast('Copied message to clipboard', 'info');
+                    }}
+                    className="hover:text-slate-600 cursor-pointer transition-colors"
+                  >
+                    Copy
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
+
 
         {/* Live Loading / Thinking Bubble */}
         {isGenerating && (

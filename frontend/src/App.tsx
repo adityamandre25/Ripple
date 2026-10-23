@@ -7,6 +7,12 @@ import { TridoBottomBar } from './components/trido/TridoBottomBar';
 import { SideChatDrawer } from './components/SideChatDrawer';
 import { RecoveryModal } from './components/RecoveryModal';
 import { MissionModal } from './components/MissionModal';
+import { AuthModal } from './components/AuthModal';
+import { TeamManagementModal } from './components/TeamManagementModal';
+import { DecisionsModal } from './components/DecisionsModal';
+import { ProjectSetupPage } from './components/binary/ProjectSetupPage';
+import { ProjectsModal } from './components/ProjectsModal';
+import { GeneratedNodesDrawer } from './components/canvas/GeneratedNodesDrawer';
 import { useCanvasStore } from './store/canvasStore';
 
 function ThreadBackBoardApp() {
@@ -16,8 +22,12 @@ function ThreadBackBoardApp() {
     isLoadingWorkspace, 
     isMissionModalOpen, 
     closeMissionModal,
-    createMissionFromModal 
+    createMissionFromModal,
+    isProjectSetupOpen,
+    isProjectsModalOpen,
+    closeProjectsModal,
   } = useCanvasStore();
+
 
   useEffect(() => {
     initializeWorkspace();
@@ -36,9 +46,9 @@ function ThreadBackBoardApp() {
         {/* Center Board Canvas Area */}
         <main className="flex-1 h-full relative overflow-hidden flex flex-col">
           {isLoadingWorkspace ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-white">
-              <span className="w-8 h-8 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></span>
-              <p className="text-xs text-slate-500 font-medium">Connecting to ThreadBack Backend...</p>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[#f1f3f6] text-slate-700">
+              <span className="w-8 h-8 border-3 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></span>
+              <p className="text-xs text-slate-500 font-medium">Connecting to ThreadBack Workspace...</p>
             </div>
           ) : (
             <FlowCanvas />
@@ -50,20 +60,42 @@ function ThreadBackBoardApp() {
 
         {/* Side Chat / Investigation Drawer */}
         <SideChatDrawer />
+
+        {/* Source C Left Explorer Drawer (Generated Nodes) */}
+        <GeneratedNodesDrawer />
       </div>
 
       {/* 3. Signature Context Recovery Modal */}
       <RecoveryModal />
 
-      {/* 4. Mission Creation Modal */}
+      {/* 4. BinaryBombers 3D Initial Project Setup Page */}
+      {isProjectSetupOpen && <ProjectSetupPage />}
+
+      {/* 5. Phase 2 Projects & GitHub Hub Modal */}
+      <ProjectsModal
+        isOpen={isProjectsModalOpen}
+        onClose={closeProjectsModal}
+      />
+
+      {/* 6. Mission Creation Modal */}
       <MissionModal
         isOpen={isMissionModalOpen}
         onClose={closeMissionModal}
-        onSaveMission={(m) => createMissionFromModal(m.objective, m.title)}
+        onSaveMission={(m) => createMissionFromModal(m.objective, m.title, m.teamId)}
       />
+
+      {/* 7. User Authentication Modal */}
+      <AuthModal />
+
+      {/* 8. Multi-User Team Management Modal */}
+      <TeamManagementModal />
+
+      {/* 9. Approved Decisions & Memory Modal */}
+      <DecisionsModal />
     </div>
   );
 }
+
 
 export default function App() {
   return (

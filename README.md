@@ -1,270 +1,149 @@
-ThreadBack
-Stay focused on the mission. Explore anything. Bring back only what
-matters.
-ThreadBack is an AI-powered workspace designed to help people make
-progress on complex tasks without losing the context that matters. It
-separates a primary Mission from focused side conversations called
-SideQuests. Users can explore ideas, ask questions, compare
-approaches, or discuss tangential topics without flooding the main
-conversation with every message.
-Instead of merging entire conversations, ThreadBack extracts useful
-context---such as decisions, rationale, learnings, blockers, and next
-steps---and makes that information available to the Main AI.
-The problem
-Long AI conversations often drift. While working toward a goal, a user
-may need to investigate an unfamiliar concept, compare technologies,
-brainstorm an alternative, or briefly discuss something unrelated.
-Keeping all of that in one conversation can bury important decisions and
-make it harder for the AI to stay focused.
-ThreadBack treats conversation history and mission context as
-different things:
-- Conversation history preserves what was said.
-- Mission context preserves what matters for completing the goal.
-- Side conversations can remain separate while their relevant
-  conclusions flow back to the mission.
-Two core use cases
-1. Personal AI agents working toward a shared outcome
-Each participant can work with a personal AI agent that understands
-their own perspective, preferences, and reasoning. These agents can
-explore options independently and develop recommendations. Only
-relevant, shareable decisions and supporting context need to flow to the
-Main AI, which combines contributions and helps the group reach a
-coherent outcome.
-Example: A team is planning a product. One person's agent recommends
-React based on the team's experience; another recommends Next.js for the
-product's rendering needs; a third flags the implementation deadline.
-The Main AI compares the proposals against the shared requirements,
-surfaces trade-offs, records the decisions, and identifies unresolved
-disagreements.
-Design principle: The Main AI should not blindly concatenate
-everyone's conversations. It should preserve who proposed what, why they
-proposed it, whether it was accepted, and what remains unresolved.
-Private personal context should not be shared automatically.
-This is a core product direction. The current repository documents
-Main AI and SideQuest conversations for a mission; a complete
-multi-user personal-agent coordination workflow may require additional
-implementation.
+# ThreadBack — Complete Workflow
 
-2. Mission-focused work with isolated exploration
-A user creates a mission such as "Build a CRUD API." The Main AI
-helps plan and execute the objective. During the work, the user can open
-SideQuests to investigate a topic, compare approaches, or explore a
-branch of work.
-Example workflow:
-1. Create a mission: "Build a CRUD API with authentication."
-2. Work with the Main AI: Define requirements, architecture, and
-   milestones.
-3. Explore in a SideQuest: Ask how JWT middleware works, compare
-   libraries, or investigate an implementation detail.
-4. Return to the mission: Generate a concise summary containing the
-   useful findings, decisions, examples, and unresolved questions.
-5. Continue with relevant context: The Main AI receives the summary
-   without importing the SideQuest's raw transcript into its own
-   message history.
-The same principle applies when a user discusses something unrelated in
-a separate conversation: it should not become mission context unless it
-is deliberately judged relevant.
-Core principles
-- Mission-first: Keep the primary objective, progress, blockers,
-  and next steps easy to recover.
-- Focused exploration: Investigate subtopics in separate
-  conversations without derailing the main thread.
-- Selective context transfer: Transfer decisions and useful
-  findings, not every message.
-- History isolation: Preserve each conversation's transcript
-  independently.
-- Traceable decisions: Keep the rationale and status of decisions
-  so the Main AI can distinguish proposals from accepted choices.
-- Bounded context: Inject a limited amount of relevant information
-  into prompts to reduce repetition and context bloat.
-- Privacy by design: In a multi-person workflow, share only
-  information that is appropriate and authorized to share.
-How it works today
-The current application uses a React frontend and an Express/TypeScript
-backend. Missions, conversations, messages, and structured memory are
-persisted in SQLite. The backend calls Google's GenAI SDK for model
-inference.
-At a high level:
-Mission
-  |
-  +-- Main conversation
-  |     +-- Mission objective
-  |     +-- Progress, decisions, blockers, next step
-  |
-  +-- SideQuest conversation(s)
-        +-- Separate message history
-        +-- Focused exploration
-        +-- Structured learning summary
-                    |
-                    v
-          Mission memory / Main AI context
-Context-transfer flow
-1. The user explores a topic in a SideQuest.
-2. The user invokes Return to Mission.
-3. The backend synthesizes a structured learning summary.
-4. The summary is stored as SideQuest memory, and relevant decisions
-   are merged into mission memory.
-5. On a subsequent Main AI turn, relevant summaries and mission memory
-   can be included in the prompt.
-6. The original SideQuest transcript remains separate from the Main
-   conversation history.
-The backend limits injected completed SideQuest summaries and tracks
-incorporation to avoid repeatedly adding the same summary to the prompt.
-Current features
-- Persistent Main AI and SideQuest conversations.
-- Mission creation and retrieval.
-- SideQuests linked to a mission.
-- Structured summaries for returning from a SideQuest to a mission.
-- Mission memory for summary, progress, decisions, blockers, and next
-  step.
-- SQLite persistence using better-sqlite3.
-- A sliding recent-message window for model prompts while retaining
-  full history in the database.
-- Separate Main AI and SideQuest message histories and system prompts.
-- Request validation, health/status endpoints, and failure handling.
-- Automated backend tests using Vitest.
-Tech stack
-  Layer            Technology
-  Frontend         React, TypeScript, Vite, Tailwind CSS
-  Frontend state   Zustand
-  Backend          Node.js, Express, TypeScript
-  Database         SQLite with better-sqlite3
-  AI integration   Google GenAI SDK
-  Testing          Vitest
-Repository structure
-ThreadBack/
-├── frontend/
-│   ├── src/
-│   │   ├── api/           # Typed backend REST API client
-│   │   ├── components/    # UI components
-│   │   ├── store/         # Zustand state and synchronization
-│   │   ├── types/         # TypeScript contracts and schemas
-│   │   └── App.tsx        # Application entry point
-│   ├── package.json
-│   └── vite.config.ts
-├── backend/
-│   ├── src/               # Routes, controllers, services, repositories
-│   ├── data/              # Local SQLite database (created at runtime)
-│   ├── tests/             # Vitest suites
-│   └── package.json
-├── package.json           # Root scripts and workspace commands
-└── README.md
-Getting started
-Prerequisites
-- Node.js 18 or later
-- npm 9 or later
-- A Google GenAI API key with access to the configured model
-1. Install dependencies
-From the repository root:
-npm install
-If the repository uses separate package manifests and dependencies are
-not installed by the root command, install them in the relevant
-frontend/ and backend/ directories as needed.
-2. Configure environment variables
-Configure the backend environment in the location expected by the
-backend configuration (for example, backend/.env or the root .env,
-depending on the current setup):
-PORT=4000
-GEMINI_API_KEY=your_actual_api_key
-GEMMA_MODEL=gemma-4-26b-a4b-it
-CORS_ORIGIN=http://localhost:5173,http://localhost:3000
-Configure the frontend in frontend/.env:
-VITE_API_URL=http://localhost:4000/api
-Do not commit real API keys. Keep provider credentials on the backend;
-variables prefixed with VITE_ are exposed to the browser.
-3. Run the application
-Start the backend API:
-npm run dev:backend
-Start the frontend in another terminal:
-npm run dev:frontend
-Open http://localhost:5173.
-If the root scripts differ in your checkout, use the scripts defined in
-the root and package-level package.json files.
-4. Build and validate
+> **Stay focused on the mission. Explore anything. Bring back only what matters.**
+
+---
+
+## 1. What ThreadBack does
+
+ThreadBack is a collaborative AI development platform where each teammate can explore ideas independently using a personal sub-agent, while the Main Agent maintains the shared project context and coordinates the team's overall direction.
+
+The goal is to let teammates investigate different topics without flooding the Main Agent with every message, while preserving important findings, decisions, and context for the entire team.
+
+---
+
+## 2. Complete workflow
+
+### 1. Create a workspace and project
+A user creates a project, invites teammates, and connects the GitHub repository they want to work on (`https://github.com/owner/repository`). The project becomes the shared workspace for team activity, code understanding, decisions, and AI-assisted development.
+
+- Project setup includes a 3-step guided flow: **Project Details → Invite Teammates → Connect GitHub Repository**.
+- The repository URL is validated on both client and server, stored in SQLite (`projects.github_repo`), and authoritatively associated with the project.
+- Multiple projects maintain distinct, isolated repository associations when switching or reopening.
+
+### 2. Each teammate works independently
+Every teammate can interact with their own SideQuest sub-agent. They can ask questions, investigate technologies, explore implementation approaches, debug problems, or research a specific part of the project.
+
+For example, one teammate investigates database architecture, another explores authentication, and another studies API performance. Each SideQuest conversation maintains its own history, so one teammate's investigation does not automatically become part of another teammate's conversation.
+
+### 3. Why use sub-agents?
+A teammate may need dozens of messages to investigate a problem. Sending every message directly to the Main Agent would consume context, introduce irrelevant details, and mix unrelated investigations.
+
+The sub-agent handles the detailed exploration locally. It helps the teammate understand the topic, develop an approach, and identify useful findings. Only relevant outcomes need to be incorporated into the shared project context.
+
+### 4. The teammate returns important findings
+When the teammate finishes an investigation, ThreadBack's **Return to Mission** workflow brings the SideQuest findings back into the main project context.
+
+The system uses the conversation to identify relevant conclusions, technical findings, proposed solutions, and decisions. These are stored as SideQuest and mission memories, with incorporation tracked so the system can distinguish findings that have been integrated from those that have not.
+
+The purpose is to preserve useful knowledge without transferring the entire investigation into the Main Agent's context.
+
+### 5. The Main Agent coordinates the project
+The Main Agent serves as the central AI for the shared project. It uses the available project context, incorporated memories, and team decisions to help teammates understand the current direction and make consistent decisions.
+
+For example, if one teammate establishes that the project uses SQLite and another investigates authentication, the Main Agent can use those incorporated findings when helping with a new implementation task.
+
+The Main Agent is not simply another personal chatbot: it is the shared coordination point for project-level reasoning. Its usefulness depends on the quality and freshness of the information incorporated into the project.
+
+### 6. Shared decisions and project memory
+Important decisions and conclusions become part of the project's persistent context rather than remaining buried in individual conversations.
+
+This helps teammates understand why a particular approach was chosen, avoid repeating investigations, and work from a more consistent understanding of the project.
+
+Individual SideQuest histories remain separate from the Main Agent's conversation history. Findings are incorporated through the explicit return workflow rather than silently merging all conversations.
+
+### 7. GitHub and repository understanding
+When a repository is connected, ThreadBack can use the repository integration to retrieve repository information and analyze the selected codebase, depending on the configured services and available credentials.
+
+- **Repository Analysis**: Deep structural inspection covering top-level layout, file counts, programming languages, architectural overview, key subsystems, and engineering insights.
+- **Project-Scoped Analysis**: Repository operations automatically resolve the active project's saved repository URL, eliminating hardcoded fallbacks.
+- **User Feedback**: Engineers can submit evaluations (1–5 stars and comments) to build institutional knowledge on report accuracy.
+
+### 8. The team continues building
+As development progresses, teammates can create new SideQuests for unresolved questions, return important findings to the project, and use the Main Agent with the accumulated project context.
+
+The cycle repeats:
+- Investigate independently.
+- Extract useful findings.
+- Incorporate important knowledge into the shared project.
+- Coordinate through the Main Agent.
+- Continue development with better context.
+
+---
+
+## 3. Why both agents are necessary
+
+| SideQuest sub-agent | Main Agent |
+| :--- | :--- |
+| Focuses on one teammate's specific investigation | Focuses on the shared project |
+| Maintains its own conversation history | Uses available project-wide context and incorporated findings |
+| Supports detailed exploration and follow-up questions | Helps coordinate decisions and maintain consistency |
+| Keeps exploratory details separate | Uses relevant conclusions from multiple investigations |
+| Returns useful findings through the incorporation workflow | Uses incorporated findings to guide subsequent work |
+
+---
+
+## 4. The central idea
+
+SideQuest is where teammates think deeply about individual problems. The Main Agent is where the project brings together the important knowledge from those investigations.
+
+ThreadBack is designed to combine independent exploration with shared project intelligence, reducing duplicated effort and context overload while helping teammates make consistent decisions.
+
+The key distinction is that a sub-agent's entire conversation does not automatically become shared knowledge. The return-and-incorporation workflow is what connects individual investigations to the team's evolving project context.
+
+---
+
+## 5. Architectural Drift Detection & Main AI Decisions
+
+A critical question in collaborative AI development is: **Does repository analysis detect if code implementation is drifting from decisions made in the Main AI?**
+
+**Yes.** ThreadBack integrates Main AI decisions directly into drift analysis:
+
+1. **Context Extraction**: When drift detection runs for a project (`POST /api/github/drift-analysis` with `projectId`), the backend queries `shared_decisions` and mission objectives for that project.
+2. **Decision Synthesis**: Approved decisions (agreed upon in the Main Agent or returned from SideQuests) form the authoritative charter for that evaluation.
+3. **Drift Evaluation**: The repository's files, commit history, dependencies, and structure are verified against those exact decisions.
+4. **Scoring & Remediations**: The system calculates a drift percentage score, classifies each decision (`NO_CONFLICT`, `CONFIRMED_CONFLICT`, `POSSIBLE_CONFLICT`, or `INCOMPLETE_IMPLEMENTATION`), cites concrete evidence, and proposes corrective action.
+
+---
+
+## 6. Technology Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v4, Zustand, `@xyflow/react` |
+| **Backend** | Node.js, Express 5, TypeScript, Better-SQLite3, Zod |
+| **Database** | SQLite with WAL mode (`backend/data/sidequest.db`) |
+| **AI Inference** | Google GenAI SDK (`@google/genai`) with Gemma 4 (`gemma-4-26b-a4b-it`) |
+| **Security & Auth** | Node.js native `crypto` (`scryptSync` salted hashing, HMAC-SHA256 tokens, AES-256-GCM vault) |
+| **Testing** | Vitest (18 test suites, 155 automated unit & integration tests) |
+
+---
+
+## 7. Quickstart & Commands
+
+### One-Command Startup
+Run both backend (`http://localhost:4000`) and frontend (`http://localhost:5173`) concurrently:
+```bash
+npm run dev
+```
+
+### Build & Typecheck
+```bash
+# Build full application
 npm run build
+
+# Typecheck backend and frontend
 npm run typecheck
+```
+
+### Run Test Suite
+Execute all 18 Vitest suites (155 tests) across auth, projects, teams, memory, GitHub, drift detection, and isolation:
+```bash
 npm test
-The existing project documentation reports 96 backend tests across 10
-test files. Run the test command in your checkout to verify the current
-result.
-A Phase 4 verification script is also documented:
-npx tsx scripts/verify-phase4.ts
-API overview
-The following endpoints are documented by the current backend:
-  Method                  Endpoint                                     Purpose
-  POST                  /api/missions                              Create a mission and
-                                                                       its Main conversation
-  GET                   /api/missions                              List recent missions
-  GET                   /api/missions/:id                          Retrieve a mission and
-                                                                       its conversations
-  POST                  /api/missions/:id/sidequests               Create a SideQuest
-                                                                       linked to a mission
-  GET                   /api/conversations/:id/messages            Retrieve chronological
-                                                                       conversation messages
-  POST                  /api/ai/chat                               Continue the Main AI
-                                                                       conversation
-  POST                  /api/ai/sidequest/chat                     Continue a SideQuest
-                                                                       conversation
-  POST                  /api/conversations/:id/return-to-mission   Summarize a SideQuest
-                                                                       and prepare relevant
-                                                                       context for the mission
-  GET                   /api/health                                Check backend health
-  GET                   /api/ai/status                             Inspect AI
-                                                                   configuration status
-Example: Continue the Main AI conversation
-{
-  "conversationId": "your-main-conversation-id",
-  "message": "Use the authentication approach we agreed on and continue with the protected routes."
-}
-Example: Continue a SideQuest
-{
-  "conversationId": "your-sidequest-conversation-id",
-  "message": "Explain how JWT middleware works and compare the implementation options."
-}
-Example: Return to the mission
-POST /api/conversations/:id/return-to-mission
-The backend creates a structured summary of the SideQuest and makes
-relevant findings available to the mission. Refer to the route
-implementation and tests for the exact response schema.
-Data model
-The documented SQLite schema contains these core entities:
-- missions --- objective, status, and timestamps.
-- conversations --- conversation ID, associated mission, type
-  (main or sidequest), topic, and timestamps.
-- messages --- raw messages associated with a conversation.
-- mission_memories --- mission summary, progress, decisions,
-  blockers, and next step.
-- sidequest_memories --- structured SideQuest learning summary,
-  unresolved questions, and incorporation status.
-A mission has one Main conversation and can have multiple SideQuest
-conversations. Memory is stored separately from raw message history so
-that useful context can be retrieved without merging transcripts.
-Roadmap direction
-The product direction is to expand selective context transfer into a
-robust mission and multi-agent context system:
-- Personal agents: Give each participant an agent that can reason
-  about their own perspective.
-- Shared decision layer: Send selected decisions and supporting
-  evidence to the Main AI.
-- Decision provenance: Track the author, rationale, status, and
-  timestamp of each proposal or decision.
-- Conflict handling: Surface disagreements and unresolved
-  questions instead of silently choosing a winner.
-- Mission relevance filtering: Keep unrelated conversation content
-  out of mission memory.
-- Permission-aware sharing: Let participants control which
-  personal context can be shared with the group.
-- Mission memory maintenance: Update decisions, progress,
-  blockers, and next steps as the project evolves.
-These are product goals, not a claim that every capability is already
-implemented.
-Contributing
-Contributions are welcome. Before submitting a change:
-1. Keep Main and SideQuest histories isolated unless a deliberate
-   context-transfer operation is being changed.
-2. Preserve the distinction between raw conversation messages and
-   structured mission memory.
-3. Add or update tests for context transfer, deduplication, validation,
-   and failure cases.
-4. Run type checking and tests.
-5. Never commit API keys, local databases, or other secrets.
+```
+
+---
+
+## 8. License
+
+This project is licensed under the terms of the [MIT License](LICENSE).

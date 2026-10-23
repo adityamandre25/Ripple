@@ -8,6 +8,8 @@ interface MessageRow {
   conversation_id: string;
   role: MessageRole;
   content: string;
+  user_id?: string | null;
+  user_name?: string | null;
   created_at: string;
 }
 
@@ -17,8 +19,15 @@ function mapMessageRow(row: MessageRow): Message {
     conversationId: row.conversation_id,
     role: row.role,
     content: row.content,
+    userId: row.user_id || null,
+    userName: row.user_name || null,
     createdAt: row.created_at,
   };
+}
+
+export interface CreateMessageOptions {
+  userId?: string | null;
+  userName?: string | null;
 }
 
 export class MessageRepository {
@@ -27,23 +36,32 @@ export class MessageRepository {
   /**
    * Persists a message for a conversation.
    */
-  createMessage(conversationId: string, role: MessageRole, content: string): Message {
+  createMessage(
+    conversationId: string,
+    role: MessageRole,
+    content: string,
+    options?: CreateMessageOptions
+  ): Message {
     const db = this.getDb();
     const id = randomUUID();
     const now = new Date().toISOString();
+    const userId = options?.userId || null;
+    const userName = options?.userName || null;
 
-    const insert = db.prepare<[string, string, string, string, string]>(`
-      INSERT INTO messages (id, conversation_id, role, content, created_at)
-      VALUES (?, ?, ?, ?, ?)
+    const insert = db.prepare<[string, string, string, string, string | null, string | null, string]>(`
+      INSERT INTO messages (id, conversation_id, role, content, user_id, user_name, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
-    insert.run(id, conversationId, role, content, now);
+    insert.run(id, conversationId, role, content, userId, userName, now);
 
     return {
       id,
       conversationId,
       role,
       content,
+      userId,
+      userName,
       createdAt: now,
     };
   }
@@ -55,7 +73,7 @@ export class MessageRepository {
     const db = this.getDb();
     const rows = db
       .prepare<[string, number], MessageRow>(
-        'SELECT id, conversation_id, role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC, rowid ASC LIMIT ?'
+        'SELECT id, conversation_id, role, content, user_id, user_name, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC, rowid ASC LIMIT ?'
       )
       .all(conversationId, limit);
 
@@ -70,8 +88,8 @@ export class MessageRepository {
     const db = this.getDb();
     const rows = db
       .prepare<[string, number], MessageRow>(`
-        SELECT id, conversation_id, role, content, created_at FROM (
-          SELECT id, conversation_id, role, content, created_at, rowid 
+        SELECT id, conversation_id, role, content, user_id, user_name, created_at FROM (
+          SELECT id, conversation_id, role, content, user_id, user_name, created_at, rowid 
           FROM messages 
           WHERE conversation_id = ? 
           ORDER BY created_at DESC, rowid DESC 

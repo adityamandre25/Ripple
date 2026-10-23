@@ -12,13 +12,22 @@ import '@xyflow/react/dist/style.css';
 import { QNodeCard } from './QNodeCard';
 import { useCanvasStore } from '../../store/canvasStore';
 import { FloatingCanvasToolbar } from '../trido/FloatingCanvasToolbar';
+import { Sparkles, Plus, Layers } from 'lucide-react';
 
 const nodeTypes: NodeTypes = {
   qnode: QNodeCard,
 };
 
 export const FlowCanvas: React.FC = () => {
-  const { nodes: qNodes, updateNodePosition, selectNode } = useCanvasStore();
+  const { 
+    nodes: qNodes, 
+    updateNodePosition, 
+    selectNode, 
+    mission,
+    currentProject,
+    openMissionModal,
+    openProjectSetup 
+  } = useCanvasStore();
 
   const flowNodes: Node[] = useMemo(() => {
     return qNodes.map((n) => ({
@@ -84,6 +93,42 @@ export const FlowCanvas: React.FC = () => {
 
         {/* Floating Vertical Toolbar (Inside the board on the left) */}
         <FloatingCanvasToolbar />
+
+        {/* In-Canvas Empty Mission State Overlay */}
+        {(!mission || qNodes.length === 0) && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 p-4">
+            <div className="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 p-8 shadow-xl text-center pointer-events-auto space-y-5 animate-in fade-in zoom-in-95">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mx-auto shadow-xs">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {currentProject ? currentProject.name : 'Canvas Board'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  {currentProject?.description ||
+                    'Start your first mission thread to initialize the canvas node board, or explore technical tangents using SideQuests.'}
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-1">
+                <button
+                  onClick={openMissionModal}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#1859c9] hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Mission Thread</span>
+                </button>
+                <button
+                  onClick={openProjectSetup}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all cursor-pointer"
+                >
+                  <Layers className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Project Setup Flow</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

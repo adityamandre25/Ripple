@@ -64,7 +64,7 @@ export const RecoveryModal: React.FC = () => {
     }
   }, [mission, targetNode, currentSummary, isRecoveryOpen]);
 
-  if (!isRecoveryOpen) return null;
+  if (!isRecoveryOpen || !mission) return null;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(customPrompt).then(() => {

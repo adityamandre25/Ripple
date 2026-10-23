@@ -21,6 +21,24 @@
   }
 }
 
+.binary-setup-page {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  color: #f3f4f6;
+  background-color: #0a0a0c;
+}
+
+.glass-panel {
+  background-color: rgba(18, 22, 34, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background-color: rgba(22, 26, 38, 0.65);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 #root {
   width: 100%;
   min-height: 100vh;
@@ -30,7 +48,14 @@
   flex-direction: column;
 }
 
-/* Custom Dotted Canvas Pattern inspired by Trido & product sketch */
+/* Custom Dotted Canvas Pattern from Source C */
+.canvas-dot-grid {
+  background-color: #f8fafc;
+  background-image: radial-gradient(#cbd5e1 1.75px, transparent 1.75px);
+  background-size: 26px 26px;
+  background-position: 0 0;
+}
+
 .canvas-grid-dots {
   background-color: #f8fafc;
   background-image: radial-gradient(#cbd5e1 1.25px, transparent 1.25px);
@@ -38,11 +63,6 @@
   background-position: 0 0;
 }
 
-.canvas-grid-dots-dark {
-  background-color: #090d16;
-  background-image: radial-gradient(#1e293b 1.25px, transparent 1.25px);
-  background-size: 24px 24px;
-}
 
 /* Custom sleek scrollbar */
 ::-webkit-scrollbar {

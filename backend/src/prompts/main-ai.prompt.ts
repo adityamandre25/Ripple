@@ -1,4 +1,4 @@
-import { MissionMemory, SideQuestLearningSummary } from '../types/db.types';
+import { MissionMemory, SideQuestLearningSummary, SharedDecision } from '../types/db.types';
 
 export const BASE_SYSTEM_INSTRUCTION = `You are SIDEQUEST, an AI assistant that helps users complete their main task without losing focus.
 
@@ -22,11 +22,12 @@ The main mission objective is provided separately as trusted application context
 export interface MainAiContextOptions {
   missionMemory?: MissionMemory | null;
   sideQuestSummaries?: SideQuestLearningSummary[];
+  sharedDecisions?: SharedDecision[];
 }
 
 /**
  * Builds the complete system instruction for Main AI with the user's mission objective
- * and optional structured context (mission memory and recent SideQuest learnings).
+ * and optional structured context (mission memory, team-approved decisions, and recent SideQuest learnings).
  */
 export function buildMainAiSystemPrompt(
   missionObjective: string,
@@ -35,6 +36,17 @@ export function buildMainAiSystemPrompt(
   const sanitizedObjective = missionObjective.trim();
   const sections: string[] = [BASE_SYSTEM_INSTRUCTION, `[CURRENT MISSION OBJECTIVE]\n${sanitizedObjective}`];
 
+  // 1. Team-Approved Shared Decisions with contributor attribution
+  if (options?.sharedDecisions && options.sharedDecisions.length > 0) {
+    const decisionLines = options.sharedDecisions.map(
+      (d) => `  * [${d.category.toUpperCase()}] ${d.decision} (Contributed by: ${d.contributorName} at ${d.createdAt})`
+    );
+    sections.push(
+      `[TEAM-APPROVED SHARED DECISIONS & MEMORY]\nOnly explicitly approved decisions and learnings enter team memory. Teammates' private chat history is kept separate.\n${decisionLines.join('\n')}`
+    );
+  }
+
+  // 2. Mission Memory
   if (options?.missionMemory) {
     const mem = options.missionMemory;
     const memLines: string[] = [];
@@ -53,6 +65,7 @@ export function buildMainAiSystemPrompt(
     }
   }
 
+  // 3. SideQuest Summaries
   if (options?.sideQuestSummaries && options.sideQuestSummaries.length > 0) {
     const summaryBlocks = options.sideQuestSummaries.map((s) => {
       const parts: string[] = [`Topic: ${s.topic}`];

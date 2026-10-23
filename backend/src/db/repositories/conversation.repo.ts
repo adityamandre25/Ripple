@@ -8,6 +8,8 @@ interface ConversationRow {
   mission_id: string;
   type: 'main' | 'sidequest';
   topic: string | null;
+  user_id?: string | null;
+  is_shared?: number;
   created_at: string;
   updated_at: string;
 }
@@ -18,9 +20,16 @@ function mapConversationRow(row: ConversationRow): Conversation {
     missionId: row.mission_id,
     type: row.type,
     topic: row.topic,
+    userId: row.user_id || null,
+    isShared: row.is_shared === undefined || row.is_shared === null ? true : Boolean(row.is_shared),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+export interface CreateSideQuestOptions {
+  userId?: string | null;
+  isShared?: boolean;
 }
 
 export class ConversationRepository {
@@ -41,23 +50,31 @@ export class ConversationRepository {
   /**
    * Creates a new SideQuest conversation linked to an existing mission.
    */
-  createSideQuestConversation(missionId: string, topic: string): Conversation {
+  createSideQuestConversation(
+    missionId: string,
+    topic: string,
+    options?: CreateSideQuestOptions
+  ): Conversation {
     const db = this.getDb();
     const id = randomUUID();
     const now = new Date().toISOString();
+    const userId = options?.userId || null;
+    const isShared = options?.isShared === undefined ? 1 : options.isShared ? 1 : 0;
 
-    const insert = db.prepare<[string, string, string, string, string]>(`
-      INSERT INTO conversations (id, mission_id, type, topic, created_at, updated_at)
-      VALUES (?, ?, 'sidequest', ?, ?, ?)
+    const insert = db.prepare<[string, string, string, string | null, number, string, string]>(`
+      INSERT INTO conversations (id, mission_id, type, topic, user_id, is_shared, created_at, updated_at)
+      VALUES (?, ?, 'sidequest', ?, ?, ?, ?, ?)
     `);
 
-    insert.run(id, missionId, topic.trim(), now, now);
+    insert.run(id, missionId, topic.trim(), userId, isShared, now, now);
 
     return {
       id,
       missionId,
       type: 'sidequest',
       topic: topic.trim(),
+      userId,
+      isShared: Boolean(isShared),
       createdAt: now,
       updatedAt: now,
     };
@@ -89,6 +106,19 @@ export class ConversationRepository {
       .get(missionId);
 
     return row ? mapConversationRow(row) : null;
+  }
+
+  /**
+   * Toggles the sharing status of a sidequest conversation.
+   */
+  toggleShareConversation(id: string, isShared: boolean): boolean {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+    const res = db
+      .prepare<[number, string, string]>('UPDATE conversations SET is_shared = ?, updated_at = ? WHERE id = ?')
+      .run(isShared ? 1 : 0, now, id);
+
+    return res.changes > 0;
   }
 
   /**

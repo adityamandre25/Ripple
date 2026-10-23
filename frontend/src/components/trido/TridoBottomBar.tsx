@@ -45,6 +45,11 @@ export const TridoBottomBar: React.FC = () => {
     if (e) e.preventDefault();
     if (!input.trim() || isGenerating) return;
 
+    if (!selectedNode) {
+      openMissionModal();
+      return;
+    }
+
     const query = input.trim();
     setInput('');
     if (textareaRef.current) {
@@ -63,6 +68,10 @@ export const TridoBottomBar: React.FC = () => {
   };
 
   const handleSpawnSideQuest = async () => {
+    if (!selectedNode) {
+      openMissionModal();
+      return;
+    }
     const topic = input.trim() || window.prompt('Enter SideQuest inquiry topic:', 'Clarify technical details');
     if (topic && topic.trim()) {
       setInput('');

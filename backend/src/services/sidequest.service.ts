@@ -9,6 +9,11 @@ import {
 } from '../db';
 import { ApiError } from '../utils/api-error';
 
+export interface UserContext {
+  id: string;
+  name: string;
+}
+
 export class SideQuestService {
   private readonly generateFn: (params: GenerateGemmaParams) => Promise<string>;
   private readonly model?: string;
@@ -25,7 +30,7 @@ export class SideQuestService {
    * Orchestrates the SideQuest exploratory AI interaction.
    * Supports both persisted SideQuest conversations and stateless mode.
    */
-  async processSideQuestChat(request: SideQuestRequest): Promise<ChatResponse> {
+  async processSideQuestChat(request: SideQuestRequest, currentUser?: UserContext): Promise<ChatResponse> {
     const activeModel = this.model || env.gemmaModel;
 
     // --- Persisted SideQuest Conversation Mode ---
@@ -68,17 +73,21 @@ export class SideQuestService {
       const storedMessages = messageRepository.getRecentContextMessages(conversation.id, 30);
       const formattedHistory: GemmaContentMessage[] = storedMessages.map((msg) => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
+        parts: [{ text: msg.userName ? `${msg.userName}: ${msg.content}` : msg.content }],
       }));
 
       // Append incoming user message
+      const incomingText = currentUser?.name ? `${currentUser.name}: ${userMessageText}` : userMessageText;
       const formattedContents: GemmaContentMessage[] = [
         ...formattedHistory,
-        { role: 'user', parts: [{ text: userMessageText }] },
+        { role: 'user', parts: [{ text: incomingText }] },
       ];
 
-      // Save user message to SQLite
-      const userMessage = messageRepository.createMessage(conversation.id, 'user', userMessageText);
+      // Save user message to SQLite with author tracking
+      const userMessage = messageRepository.createMessage(conversation.id, 'user', userMessageText, {
+        userId: currentUser?.id,
+        userName: currentUser?.name,
+      });
       conversationRepository.touchConversation(conversation.id);
 
       // Build dedicated SideQuest system instruction
@@ -98,7 +107,7 @@ export class SideQuestService {
         throw error;
       }
 
-      // On successful inference, persist the assistant response
+      // Persist assistant response
       messageRepository.createMessage(conversation.id, 'assistant', reply);
       conversationRepository.touchConversation(conversation.id);
 
@@ -110,17 +119,28 @@ export class SideQuestService {
       };
     }
 
-    // --- Stateless Mode (Backward Compatible) ---
-    const missionObjective = request.missionObjective!;
-    const sideQuestTopic = request.sideQuestTopic!;
-    const messages = request.messages!;
+    // --- Stateless Fallback Mode ---
+    const objective = request.missionObjective || '';
+    const sideQuestTopic = request.sideQuestTopic || 'Technical Exploration';
+    const messages = request.messages || [];
 
-    const systemInstruction = buildSideQuestSystemPrompt(missionObjective, sideQuestTopic);
-    const formattedContents: GemmaContentMessage[] = messages.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }],
+    if (messages.length === 0 && !request.message) {
+      throw ApiError.badRequest('At least one user message or conversationId is required.');
+    }
+
+    const formattedContents: GemmaContentMessage[] = messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
     }));
 
+    if (request.message && request.message.trim().length > 0) {
+      formattedContents.push({
+        role: 'user',
+        parts: [{ text: request.message.trim() }],
+      });
+    }
+
+    const systemInstruction = buildSideQuestSystemPrompt(objective, sideQuestTopic);
     const reply = await this.generateFn({
       model: activeModel,
       systemInstruction,
